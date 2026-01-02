@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}포트폴리오 목록 - Alpha Portfolio{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <h2 class="page-title">포트폴리오 목록</h2>
+
+    {% if portfolios %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>포트폴리오 이름</th>
+                    <th>국가</th>
+                    <th>리스크</th>
+                    <th>생성일</th>
+                    <th>초기 예산</th>
+                    <th>현재 평가액</th>
+                    <th>수익률</th>
+                    <th>벤치마크</th>
+                    <th>상태</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in portfolios %}
+                <tr class="clickable-row" onclick="location.href='/detail/{{ p.portfolio_id }}'">
+                    <td class="portfolio-name">{{ p.portfolio_name }}</td>
+                    <td>{{ p.country }}</td>
+                    <td>
+                        <span class="badge badge-{{ p.risk_level }}">
+                            {{ p.risk_level }}
+                        </span>
+                    </td>
+                    <td>{{ (p.analysis_date or p.created_at).strftime('%Y-%m-%d') if (p.analysis_date or p.created_at) else '-' }}</td>
+                    <td class="number">{{ "{:,.0f}".format(p.initial_budget) if p.initial_budget else '-' }}</td>
+                    <td class="number">{{ "{:,.0f}".format(p.current_budget) if p.current_budget else '-' }}</td>
+                    <td class="number {% if p.return_rate > 0 %}positive{% elif p.return_rate < 0 %}negative{% endif %}">
+                        {% if p.return_rate > 0 %}+{% endif %}{{ "{:.2f}".format(p.return_rate) }}%
+                    </td>
+                    <td class="number {% if p.benchmark_return and p.benchmark_return > 0 %}positive{% elif p.benchmark_return and p.benchmark_return < 0 %}negative{% endif %}">
+                        {% if p.benchmark_return is not none %}
+                            {% if p.benchmark_return > 0 %}+{% endif %}{{ "{:.2f}".format(p.benchmark_return) }}%
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ p.status|lower }}">
+                            {{ p.status }}
+                        </span>
+                    </td>
+                    <td class="action-cell">
+                        <a href="/detail/{{ p.portfolio_id }}" class="btn btn-small">상세</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>생성된 포트폴리오가 없습니다.</p>
+        <a href="/" class="btn btn-primary">포트폴리오 생성하기</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

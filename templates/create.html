@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}포트폴리오 생성 - Alpha Portfolio{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <h2 class="page-title">포트폴리오 생성</h2>
+
+    <form id="createForm" class="form-container">
+        <!-- 필수 조건 -->
+        <section class="form-section">
+            <h3 class="section-title">필수 조건</h3>
+
+            <div class="form-group">
+                <label for="portfolio_name">포트폴리오 이름</label>
+                <input type="text" id="portfolio_name" name="portfolio_name"
+                       placeholder="예: KR Balanced 12월" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="country">국가</label>
+                    <select id="country" name="country" required>
+                        <option value="KR">KR (한국)</option>
+                        <option value="US">US (미국)</option>
+                        <option value="MIXED">MIXED (혼합)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="budget">예산 (원)</label>
+                    <input type="number" id="budget" name="budget"
+                           placeholder="예: 10000000" min="500000" required>
+                    <span class="hint">최소 500,000원</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>리스크 레벨</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="risk_level" value="conservative">
+                        <span>Conservative (안정형)</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="risk_level" value="balanced" checked>
+                        <span>Balanced (균형형)</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="risk_level" value="aggressive">
+                        <span>Aggressive (공격형)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="num_stocks">목표 종목 수</label>
+                    <input type="range" id="num_stocks" name="num_stocks"
+                           min="5" max="20" value="10" oninput="updateStockCount(this.value)">
+                    <span id="stockCountDisplay" class="range-value">10개</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="benchmark">벤치마크 지수</label>
+                    <select id="benchmark" name="benchmark" required>
+                        <option value="KOSPI200">KOSPI200</option>
+                        <option value="KOSPI">KOSPI</option>
+                        <option value="KOSDAQ">KOSDAQ</option>
+                        <option value="S&P500">S&P500</option>
+                        <option value="NASDAQ">NASDAQ</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="analysis_date">생성 날짜</label>
+                <input type="date" id="analysis_date" name="analysis_date"
+                       value="{{ today }}" required>
+                <span class="hint">해당 날짜 기준 데이터로 포트폴리오 생성</span>
+            </div>
+        </section>
+
+        <!-- 추가 정보 -->
+        <section class="form-section">
+            <h3 class="section-title">추가 정보 (선택)</h3>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="max_weight_per_stock">종목당 최대 비중</label>
+                    <input type="number" id="max_weight_per_stock" name="max_weight_per_stock"
+                           placeholder="0.20" min="0.05" max="0.50" step="0.01">
+                    <span class="hint">기본값: 리스크 레벨에 따라 자동 설정</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="max_weight_per_sector">섹터당 최대 비중</label>
+                    <input type="number" id="max_weight_per_sector" name="max_weight_per_sector"
+                           placeholder="0.40" min="0.10" max="0.80" step="0.01">
+                    <span class="hint">기본값: 리스크 레벨에 따라 자동 설정</span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="min_consecutive_buy_days">최소 연속 매수등급 일수</label>
+                    <input type="number" id="min_consecutive_buy_days" name="min_consecutive_buy_days"
+                           placeholder="5" min="1" max="30" value="5">
+                    <span class="hint">기본값: 5일</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="rebalancing_frequency">리밸런싱 주기</label>
+                    <select id="rebalancing_frequency" name="rebalancing_frequency">
+                        <option value="MONTHLY" selected>MONTHLY (월간)</option>
+                        <option value="WEEKLY">WEEKLY (주간)</option>
+                        <option value="QUARTERLY">QUARTERLY (분기)</option>
+                        <option value="NONE">NONE (없음)</option>
+                    </select>
+                    <span class="hint">기본값: MONTHLY</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 생성 버튼 -->
+        <div class="form-actions">
+            <button type="submit" id="submitBtn" class="btn btn-primary">
+                생성하기
+            </button>
+        </div>
+
+        <!-- 진행 상태 -->
+        <div id="statusContainer" class="status-container" style="display: none;">
+            <div id="statusIndicator" class="status-indicator">
+                <span class="status-icon"></span>
+                <span id="statusText" class="status-text">준비 중...</span>
+            </div>
+            <div id="statusDetail" class="status-detail"></div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateStockCount(value) {
+    document.getElementById('stockCountDisplay').textContent = value + '개';
+}
+
+document.getElementById('createForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const submitBtn = document.getElementById('submitBtn');
+    const statusContainer = document.getElementById('statusContainer');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    const statusDetail = document.getElementById('statusDetail');
+
+    // Show status, disable button
+    submitBtn.disabled = true;
+    submitBtn.textContent = '생성 중...';
+    statusContainer.style.display = 'block';
+    statusIndicator.className = 'status-indicator status-progress';
+    statusText.textContent = '포트폴리오 생성 중...';
+    statusDetail.textContent = '잠시만 기다려 주세요.';
+
+    try {
+        const formData = new FormData(this);
+
+        const response = await fetch('/generate', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            statusIndicator.className = 'status-indicator status-success';
+            statusText.textContent = '생성 완료';
+            statusDetail.innerHTML = `
+                포트폴리오 ID: ${result.portfolio_id}<br>
+                포트폴리오 이름: ${result.portfolio_name}<br>
+                종목 수: ${result.stock_count}개<br><br>
+                <a href="/detail/${result.portfolio_id}" class="btn btn-small">상세 보기</a>
+                <a href="/list" class="btn btn-small btn-secondary">리스트로 이동</a>
+            `;
+        } else {
+            statusIndicator.className = 'status-indicator status-error';
+            statusText.textContent = '생성 실패';
+            statusDetail.textContent = result.message || '알 수 없는 오류가 발생했습니다.';
+        }
+    } catch (error) {
+        statusIndicator.className = 'status-indicator status-error';
+        statusText.textContent = '오류 발생';
+        statusDetail.textContent = error.message;
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '생성하기';
+    }
+});
+
+// Update benchmark options based on country
+document.getElementById('country').addEventListener('change', function() {
+    const benchmark = document.getElementById('benchmark');
+    const country = this.value;
+
+    if (country === 'KR') {
+        benchmark.innerHTML = `
+            <option value="KOSPI200">KOSPI200</option>
+            <option value="KOSPI">KOSPI</option>
+            <option value="KOSDAQ">KOSDAQ</option>
+        `;
+    } else if (country === 'US') {
+        benchmark.innerHTML = `
+            <option value="S&P500">S&P500</option>
+            <option value="NASDAQ">NASDAQ</option>
+        `;
+    } else {
+        benchmark.innerHTML = `
+            <option value="KOSPI200">KOSPI200</option>
+            <option value="S&P500">S&P500</option>
+        `;
+    }
+});
+</script>
+{% endblock %}

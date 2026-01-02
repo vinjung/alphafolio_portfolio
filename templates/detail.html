@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}{{ portfolio.portfolio_name }} - Alpha Portfolio{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="page-header">
+        <a href="/list" class="btn btn-back">&larr; 목록으로</a>
+        <h2 class="page-title">{{ portfolio.portfolio_name }}</h2>
+        <button type="button" class="btn btn-danger" onclick="deletePortfolio('{{ portfolio.portfolio_id }}', '{{ portfolio.portfolio_name }}')">삭제</button>
+    </div>
+
+    <!-- 포트폴리오 요약 -->
+    <section class="summary-section">
+        <div class="summary-grid">
+            <div class="summary-card">
+                <span class="summary-label">생성일</span>
+                <span class="summary-value">{{ (portfolio.analysis_date or portfolio.created_at).strftime('%Y-%m-%d') if (portfolio.analysis_date or portfolio.created_at) else '-' }}</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">국가</span>
+                <span class="summary-value">{{ portfolio.country }}</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">리스크 레벨</span>
+                <span class="summary-value">
+                    <span class="badge badge-{{ portfolio.risk_level }}">{{ portfolio.risk_level }}</span>
+                </span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">종목 수</span>
+                <span class="summary-value">{{ portfolio.current_stock_count }}개</span>
+            </div>
+        </div>
+
+        <div class="summary-grid financial">
+            <div class="summary-card large">
+                <span class="summary-label">초기 예산</span>
+                <span class="summary-value">{{ "{:,.0f}".format(portfolio.initial_budget) if portfolio.initial_budget else '-' }} 원</span>
+            </div>
+            <div class="summary-card large">
+                <span class="summary-label">현재 평가액</span>
+                <span class="summary-value">{{ "{:,.0f}".format(portfolio.current_budget) if portfolio.current_budget else '-' }} 원</span>
+            </div>
+            <div class="summary-card large highlight">
+                <span class="summary-label">수익률</span>
+                <span class="summary-value {% if portfolio.return_rate > 0 %}positive{% elif portfolio.return_rate < 0 %}negative{% endif %}">
+                    {% if portfolio.return_rate > 0 %}+{% endif %}{{ "{:.2f}".format(portfolio.return_rate) }}%
+                </span>
+            </div>
+            <div class="summary-card large">
+                <span class="summary-label">벤치마크({{ portfolio.benchmark }})</span>
+                <span class="summary-value {% if portfolio.benchmark_return and portfolio.benchmark_return > 0 %}positive{% elif portfolio.benchmark_return and portfolio.benchmark_return < 0 %}negative{% endif %}">
+                    {% if portfolio.benchmark_return is not none %}
+                        {% if portfolio.benchmark_return > 0 %}+{% endif %}{{ "{:.2f}".format(portfolio.benchmark_return) }}%
+                    {% else %}
+                        -
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <!-- 보유 종목 -->
+    <section class="holdings-section">
+        <h3 class="section-title">보유 종목</h3>
+
+        {% if holdings %}
+        <div class="table-container">
+            <table class="data-table holdings-table">
+                <thead>
+                    <tr>
+                        <th class="col-no">No</th>
+                        <th class="col-symbol">Symbol</th>
+                        <th class="col-name">Name</th>
+                        <th class="col-number">Price</th>
+                        <th class="col-number">Shares</th>
+                        <th class="col-number">Amount</th>
+                        <th class="col-number sortable" data-sort="weight" onclick="sortTable(this, 6)">
+                            Weight <span class="sort-icon"></span>
+                        </th>
+                        <th class="col-number sortable" data-sort="pnl" onclick="sortTable(this, 7)">
+                            P/L <span class="sort-icon"></span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in holdings %}
+                    <tr>
+                        <td class="col-no">{{ loop.index }}</td>
+                        <td class="col-symbol">{{ h.symbol }}</td>
+                        <td class="col-name">{{ h.stock_name[:16] if h.stock_name else '-' }}</td>
+                        <td class="col-number">
+                            {% if h.is_us_stock and h.current_price_usd %}
+                                ${{ "{:,.2f}".format(h.current_price_usd) }} ({{ "{:,.0f}".format(h.current_price) }})
+                            {% elif h.current_price %}
+                                {{ "{:,.0f}".format(h.current_price) }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="col-number">{{ h.shares }}</td>
+                        <td class="col-number">{{ "{:,.0f}".format(h.current_value) if h.current_value else '-' }}</td>
+                        <td class="col-number" data-value="{{ h.current_weight if h.current_weight else 0 }}">{{ "{:.1%}".format(h.current_weight) if h.current_weight else '-' }}</td>
+                        <td class="col-number {% if h.unrealized_pnl_pct and h.unrealized_pnl_pct > 0 %}positive{% elif h.unrealized_pnl_pct and h.unrealized_pnl_pct < 0 %}negative{% endif %}" data-value="{{ h.unrealized_pnl_pct if h.unrealized_pnl_pct else 0 }}">
+                            {% if h.unrealized_pnl_pct %}
+                                {% if h.unrealized_pnl_pct > 0 %}+{% endif %}{{ "{:.1f}".format(h.unrealized_pnl_pct) }}%
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>보유 종목 정보가 없습니다.</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- 포트폴리오 설정 정보 -->
+    <section class="config-section">
+        <h3 class="section-title">설정 정보</h3>
+        <div class="config-grid">
+            <div class="config-item">
+                <span class="config-label">벤치마크</span>
+                <span class="config-value">{{ portfolio.benchmark or '-' }}</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">종목당 최대 비중</span>
+                <span class="config-value">{{ "{:.0%}".format(portfolio.max_weight_per_stock) if portfolio.max_weight_per_stock else '-' }}</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">섹터당 최대 비중</span>
+                <span class="config-value">{{ "{:.0%}".format(portfolio.max_weight_per_sector) if portfolio.max_weight_per_sector else '-' }}</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">최소 연속 매수등급</span>
+                <span class="config-value">{{ portfolio.min_consecutive_buy_days or '-' }}일</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">리밸런싱 주기</span>
+                <span class="config-value">{{ portfolio.rebalancing_frequency or '-' }}</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">상태</span>
+                <span class="config-value">
+                    <span class="status-badge status-{{ portfolio.status|lower }}">{{ portfolio.status }}</span>
+                </span>
+            </div>
+        </div>
+    </section>
+</div>
+
+<style>
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+.sortable:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+.sort-icon::after {
+    content: '\2195';
+    margin-left: 4px;
+    opacity: 0.5;
+    font-size: 0.8em;
+}
+.sortable.sort-asc .sort-icon::after {
+    content: '\2191';
+    opacity: 1;
+}
+.sortable.sort-desc .sort-icon::after {
+    content: '\2193';
+    opacity: 1;
+}
+</style>
+
+<script>
+let currentSortColumn = null;
+let currentSortDirection = null;
+
+function sortTable(header, columnIndex) {
+    const table = document.querySelector('.holdings-table');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    // Determine sort direction
+    let direction = 'desc';  // Default: descending (highest first)
+    if (currentSortColumn === columnIndex && currentSortDirection === 'desc') {
+        direction = 'asc';
+    }
+
+    // Sort rows
+    rows.sort((a, b) => {
+        const aValue = parseFloat(a.cells[columnIndex].getAttribute('data-value')) || 0;
+        const bValue = parseFloat(b.cells[columnIndex].getAttribute('data-value')) || 0;
+
+        if (direction === 'asc') {
+            return aValue - bValue;
+        } else {
+            return bValue - aValue;
+        }
+    });
+
+    // Update row numbers and re-append
+    rows.forEach((row, index) => {
+        row.cells[0].textContent = index + 1;
+        tbody.appendChild(row);
+    });
+
+    // Update header styles
+    document.querySelectorAll('.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+    });
+    header.classList.add(direction === 'asc' ? 'sort-asc' : 'sort-desc');
+
+    // Store current sort state
+    currentSortColumn = columnIndex;
+    currentSortDirection = direction;
+}
+
+async function deletePortfolio(portfolioId, portfolioName) {
+    const confirmed = confirm(
+        '정말로 "' + portfolioName + '" 포트폴리오를 삭제하시겠습니까?\n\n' +
+        '이 작업은 되돌릴 수 없습니다.\n' +
+        '관련된 모든 데이터(보유종목, 거래내역, 성과기록)가 삭제됩니다.'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/delete/' + portfolioId, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('포트폴리오가 삭제되었습니다.');
+            window.location.href = '/list';
+        } else {
+            alert('삭제 실패: ' + result.message);
+        }
+    } catch (error) {
+        alert('삭제 중 오류가 발생했습니다: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Alpha Portfolio Generator{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1 class="logo">Alpha Portfolio</h1>
+            <nav class="nav">
+                <a href="/" class="nav-item {% if active_menu == 'create' %}active{% endif %}">
+                    생성
+                </a>
+                <a href="/list" class="nav-item {% if active_menu == 'list' %}active{% endif %}">
+                    리스트 확인
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>Alpha Portfolio Generator - Local Admin</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,34 @@
+# Environment
+.env
+.env.local
+
+# Project specific
+.clinerules
+.claude/
+docs/
+nul
+test_risk_management.py
+
+# Python
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
